@@ -1,0 +1,25 @@
+[
+    {
+        "name": "Albert",
+        "profile": {
+            "addr": "1234",
+            "phone": 4567
+        } 
+    },
+    {
+        "name": "Bill",
+        "profile": {
+            "addr": "2343",
+            "phone": 1231
+        },
+        "hobby": "reading"
+    },
+    {
+        "name": "Caren",
+        "profile": {
+            "addr": "4335",
+            "phone": 5645,
+            "tel": 346235
+        } 
+    }
+]
