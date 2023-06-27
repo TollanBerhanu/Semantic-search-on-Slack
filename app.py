@@ -1,25 +1,24 @@
+from peft import PeftModel
+from transformers import LLaMATokenizer, LLaMAForCausalLM, GenerationConfig
+import textwrap
+
 import os
 import pandas as pd
-import numpy as np
+
+import glob
+import json
 
 slack_data = './slack-data/'
+# cwd = os.path.join (os.getcwd(), slack_data)  # join with current_working_directory just in case
 
 df = pd.read_json(slack_data + 'channels.json')
 
-# channel_ids = [id for id in df['id']]
+channel_ids = [id for id in df['id']]
 channel_names = [ name for name in df['name']]
 
-channel_names
-#channel_info --> (key: channel_id , value: channel_name)
+channels = pd.DataFrame({ 'channel_id': channel_ids, 'channel_name': channel_names } )
 
-# Helper functions
-def lookup_channel(channel_id):
-  channel_name = ''
-  return channel_name
-
-# import necessary libraries
-import glob
-
+# Return the metadata of each message in the channel
 def extract_channel_data(channel_name):
   # use glob to get all the json files in the folder
   daily_json_files = glob.glob(slack_data + channel_name +'/*.json')
@@ -28,28 +27,38 @@ def extract_channel_data(channel_name):
   if not daily_json_files:
     return
 
+  metadata = pd.DataFrame(columns = ['message', 'channel', 'date', 'time', 'user_id', 'user_name'])
+
   # loop over the list of json files (each json file includes every post in that channel for a single day)
   for f in daily_json_files:
     # read the json file
-    data = pd.read_json(f) 
-    
-    # print the filename getting extracted (it is also the messages were posted)
-    today = f.split("/")[-1]  # 'f' is the location of the file
-    print('Extracting...', today)
+    # today_data = pd.read_json(f)
+    with open(f, 'r') as file:
+        # Read the contents
+        data = file.read()
+        # Parse the JSON data
+        today_data = json.loads(data)
 
-    # Skip if its a "channel_join" type message or if the actual message content is empty
-    # if data['subtype'] or data['type'] == "":
-    #   return
-      # We should also remove any links, stickers, and other junk
-      # We should replace @Member references by their actual names
-    
-    return {
-            'message': data['text'],
+    today_date = f.split("/")[-1]  # 'f' is the full file path and file name
+    print('Extracting...', today_date) # the file name is the date
+
+    # iterate through all the messages of the day
+    for msg_data in today_data:
+      # Skip if its a "channel_join" type message or if the actual message content is empty
+      if ('subtype' in msg_data) or (msg_data['text'] == '') or (msg_data['type'] != 'message'):
+        continue
+        # TODO: filter out any links, stickers, and other junk
+        # TODO: replace @Member references by their real names
+
+      metadata.loc[len(metadata)] = {
+            'message': msg_data['text'],
             'channel': channel_name,
-            'date': today,
-            'time': data['ts'],
-            'user_id': data['user'],
-            'user_name': data['user_profile'].first_name # We can also use 'real_name' if we wanted the full name of the user
-          }
+            'date': today_date.split(".json")[0], # omit the file extension '.json'
+            'time': msg_data['ts'],
+            'user_id': msg_data['user'],
+            'user_name': msg_data['user_profile']#['first_name'] # We can also use 'real_name' if we wanted the full name of the user
+      }
 
-print (extract_channel_data('general'))
+  return metadata
+
+print(extract_channel_data('general').to_json(orient="records"))
